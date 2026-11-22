@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="iconBg">#0b0c0e</color>
+    <color name="plate">#0b0c0e</color>
+    <color name="panel">#121416</color>
+    <color name="line">#2b2f34</color>
+    <color name="fg">#e4e7ea</color>
+    <color name="fg2">#9aa1a8</color>
+    <color name="fg3">#6b7278</color>
+    <color name="accent">#5fd3c4</color>
+    <color name="warn">#e0b64a</color>
+    <color name="bad">#e0544f</color>
+    <color name="good">#3fa66b</color>
+</resources>

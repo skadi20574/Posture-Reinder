@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+
+# build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# signing
+*.jks
+*.keystore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# local voice clips (see app/src/main/assets/audio/README.md)
+app/src/main/assets/audio/*.mp3

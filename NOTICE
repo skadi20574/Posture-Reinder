@@ -1,0 +1,27 @@
+Posture Reinder
+Copyright 2026 skadi20574
+
+This product includes software developed by third parties:
+
+* MediaPipe (https://github.com/google-ai-edge/mediapipe)
+  Copyright 2023 Google LLC
+  Licensed under the Apache License, Version 2.0.
+  Includes the Pose Landmarker (BlazePose GHUM 3D) and Face Landmarker
+  model files (`*.task`), also distributed under the Apache License, Version 2.0.
+
+* OpenCV 4.10.0 (https://opencv.org)
+  Apache License, Version 2.0. Statically linked inside
+  `libmediapipe_tasks_vision_jni.so` shipped by MediaPipe Tasks.
+
+* AndroidX / Jetpack CameraX (https://developer.android.com/jetpack)
+  Copyright The Android Open Source Project
+  Licensed under the Apache License, Version 2.0.
+
+* TensorFlow Lite and XNNPACK
+  Apache License, Version 2.0 / BSD 3-Clause.
+
+* Guava, protobuf-javalite, jsr305, flogger, javax.inject
+  Apache License, Version 2.0 / BSD 3-Clause.
+
+Full license texts are available from the projects listed above. If you
+redistribute this work, keep this NOTICE file together with the LICENSE.

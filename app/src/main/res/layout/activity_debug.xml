@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/plate"
+    android:orientation="vertical">
+
+    <com.posturereinder.app.DebugView
+        android:id="@+id/debugView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/debugData"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/panel"
+        android:padding="14dp"
+        android:text="加载模型…"
+        android:textColor="@color/fg2"
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        android:text="调试预览会暂停后台监控。绿色框：人体 / 人脸；黄点：瞳孔。"
+        android:textColor="@color/fg3"
+        android:textSize="10sp" />
+</LinearLayout>
