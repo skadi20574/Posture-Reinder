@@ -43,6 +43,12 @@
 产物在 `app/build/outputs/apk/debug/`，按 ABI 分成 `arm64-v8a`、`armeabi-v7a`、`x86` 三个包（近几年的手机装 `arm64-v8a`）。
 
 首次构建会从 Google Maven 和 Maven Central 下载依赖（MediaPipe、CameraX、AndroidX）。
+如果所在网络访问 Google 较慢，可以把 `settings.gradle` 里的仓库换成镜像，例如：
+
+```groovy
+maven { url 'https://maven.aliyun.com/repository/google' }
+maven { url 'https://maven.aliyun.com/repository/public' }
+```
 
 ## 目录结构
 
