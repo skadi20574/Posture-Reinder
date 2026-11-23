@@ -189,8 +189,17 @@ public class LocalService extends Service implements LifecycleOwner {
                         stopSelf();
                         return;
                     }
+                    int before = settings.cameraMode;
                     settings.reload();
                     prefs.setVoice(settings.voice);
+                    if (before != settings.cameraMode) {
+                        baseline = prefs.baseline(settings.cameraMode);
+                        synchronized (machine) {
+                            machine.reset();
+                        }
+                        lastBroadcastKey = "";
+                        headEma = 1.0;
+                    }
                 }
             };
 
@@ -206,7 +215,7 @@ public class LocalService extends Service implements LifecycleOwner {
         prefs = new LocalPrefs(this);
         settings = new Settings(this);
         db = new StatsDb(this);
-        baseline = prefs.baseline();
+        baseline = prefs.baseline(settings.cameraMode);
 
         try {
             String[] names = getAssets().list("audio");
@@ -420,7 +429,7 @@ public class LocalService extends Service implements LifecycleOwner {
             long ts = SystemClock.uptimeMillis();
             landmarker.detectAsync(mpImage, ts);
             FaceLandmarker fl = faceLandmarker;
-            if (fl != null && settings.attention) {
+            if (fl != null && settings.attention && settings.cameraMode == Vision.MODE_FRONT) {
                 fl.detectAsync(mpImage, ts);
             }
         } catch (Exception e) {
@@ -469,7 +478,9 @@ public class LocalService extends Service implements LifecycleOwner {
                         ny[i] = p.y();
                         nv[i] = p.visibility().isPresent() ? p.visibility().get() : 0f;
                     }
-                    frame = Vision.measure(nx, ny, nv, w, h);
+                    frame = settings.cameraMode == Vision.MODE_SIDE
+                            ? Vision.measureSide(nx, ny, nv, w, h)
+                            : Vision.measure(nx, ny, nv, w, h);
                 }
             }
 
@@ -495,7 +506,7 @@ public class LocalService extends Service implements LifecycleOwner {
             if (reading.present && ratio > 0.5 && ratio < 2.0) {
                 headEma = headEma * 0.8 + ratio * 0.2;
             }
-            String label = Vision.postureLabel(reading, headEma);
+            String label = Vision.postureLabel(reading, headEma, settings.cameraMode);
 
             long nowMs = System.currentTimeMillis();
             double dt = lastPoseAt == 0 ? 0 : Math.min((nowMs - lastPoseAt) / 1000.0, 5.0);
@@ -567,6 +578,11 @@ public class LocalService extends Service implements LifecycleOwner {
 
     private void updateFocus(Vision.Reading reading, double dt, long now) {
         restDue = false;
+        if (settings.cameraMode == Vision.MODE_SIDE) {
+            attentionText = "侧视：仅坐姿";
+            focusSec = 0;
+            return;
+        }
         if (!settings.attention) {
             attentionText = "专注检测关闭";
             focusSec = 0;
@@ -785,9 +801,11 @@ public class LocalService extends Service implements LifecycleOwner {
                 calibFrames.clear();
             }
             try {
-                Vision.Baseline b = Vision.fit(copy);
+                Vision.Baseline b = settings.cameraMode == Vision.MODE_SIDE
+                        ? Vision.fitSide(copy)
+                        : Vision.fit(copy);
                 baseline = b;
-                prefs.setBaseline(b);
+                prefs.setBaseline(settings.cameraMode, b);
                 broadcast("READY", -1, "校准完成 ✔", true);
                 updateNotification("校准完成", -1);
             } catch (Exception e) {

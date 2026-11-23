@@ -84,6 +84,7 @@ public class SettingsActivity extends Activity {
         paintSensitivity();
         paintAttention();
         paintTheme();
+        paintMode();
         paintValues();
         selectTab(0);
         loading = false;
@@ -140,6 +141,8 @@ public class SettingsActivity extends Activity {
         attLoose.setOnClickListener(v -> setAttention(1.3));
         findViewById(R.id.themeMinimal).setOnClickListener(v -> chooseTheme(0));
         findViewById(R.id.themeElegant).setOnClickListener(v -> chooseTheme(1));
+        findViewById(R.id.btnModeFront).setOnClickListener(v -> setMode(Vision.MODE_FRONT));
+        findViewById(R.id.btnModeSide).setOnClickListener(v -> setMode(Vision.MODE_SIDE));
         findViewById(R.id.btnDebugPreview).setOnClickListener(v ->
                 startActivity(new Intent(this, DebugActivity.class)));
         findViewById(R.id.btnStatsPage).setOnClickListener(v ->
@@ -190,6 +193,7 @@ public class SettingsActivity extends Activity {
         settings.theme = t;
         settings.save();
         paintTheme();
+        paintMode();
         notifyService();
     }
 
@@ -258,6 +262,25 @@ public class SettingsActivity extends Activity {
         attStrict.setTextColor(strict ? accent : dim);
         attNormal.setTextColor(normal ? accent : dim);
         attLoose.setTextColor(loose ? accent : dim);
+    }
+
+    private void setMode(int mode) {
+        settings.cameraMode = mode;
+        settings.save();
+        paintMode();
+        notifyService();
+        Toast.makeText(this, mode == Vision.MODE_SIDE
+                ? "已切换到侧面机位，请重新校准" : "已切换到正面机位，请重新校准",
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void paintMode() {
+        int accent = getColor(R.color.accent);
+        int dim = getColor(R.color.fg3);
+        ((Button) findViewById(R.id.btnModeFront))
+                .setTextColor(settings.cameraMode == Vision.MODE_FRONT ? accent : dim);
+        ((Button) findViewById(R.id.btnModeSide))
+                .setTextColor(settings.cameraMode == Vision.MODE_SIDE ? accent : dim);
     }
 
     private void paintTheme() {

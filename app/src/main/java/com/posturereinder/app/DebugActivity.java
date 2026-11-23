@@ -102,7 +102,7 @@ public class DebugActivity extends Activity implements LifecycleOwner {
         data = findViewById(R.id.debugData);
         settings = new Settings(this);
         prefs = new LocalPrefs(this);
-        baseline = prefs.baseline();
+        baseline = prefs.baseline(settings.cameraMode);
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE);
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START);
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME);
@@ -247,16 +247,20 @@ public class DebugActivity extends Activity implements LifecycleOwner {
                 ny[i] = p.y();
                 nv[i] = p.visibility().isPresent() ? p.visibility().get() : 0f;
             }
-            Vision.Frame f = Vision.measure(nx, ny, nv, pw, ph);
+            Vision.Frame f = settings.cameraMode == Vision.MODE_SIDE
+                    ? Vision.measureSide(nx, ny, nv, pw, ph)
+                    : Vision.measure(nx, ny, nv, pw, ph);
             if (f != null && baseline != null) {
                 Vision.Reading rd = Vision.evaluate(f, baseline, settings.sensitivity);
                 if (rd.headRatio > 0.5 && rd.headRatio < 2) headEma = headEma * 0.8 + rd.headRatio * 0.2;
-                label = Vision.postureLabel(rd, headEma);
+                label = Vision.postureLabel(rd, headEma, settings.cameraMode);
                 score = rd.score;
-                zs = new double[Vision.ORDER.length];
+                String[] order = settings.cameraMode == Vision.MODE_SIDE
+                        ? Vision.SIDE_ORDER : Vision.ORDER;
+                zs = new double[order.length];
                 for (Vision.Metric m : rd.metrics) {
-                    for (int i = 0; i < Vision.ORDER.length; i++) {
-                        if (Vision.ORDER[i].equals(m.key)) zs[i] = m.z;
+                    for (int i = 0; i < order.length; i++) {
+                        if (order[i].equals(m.key)) zs[i] = m.z;
                     }
                 }
             } else if (f != null) {
@@ -297,16 +301,19 @@ public class DebugActivity extends Activity implements LifecycleOwner {
         } else {
             sb.append("人脸：未检测到\n");
         }
-        if (zs.length == Vision.ORDER.length) {
+        String[] order = settings.cameraMode == Vision.MODE_SIDE
+                ? Vision.SIDE_ORDER : Vision.ORDER;
+        if (zs.length == order.length) {
             StringBuilder z = new StringBuilder("z: ");
             for (int i = 0; i < zs.length; i++) {
-                z.append(String.format(Locale.CHINA, "%s%+.1f ", Vision.ORDER[i], zs[i]));
+                z.append(String.format(Locale.CHINA, "%s%+.1f ", order[i], zs[i]));
             }
             sb.append(z).append("\n");
         }
         sb.append("阈值：闭眼 ").append(Math.round(settings.blinkThreshold * 100))
                 .append("% · 分心灵敏度 ").append(settings.attentionSens).append("\n");
-        sb.append("识别模式：MediaPipe Tasks 0.10.21 · CPU / XNNPACK\n");
+        sb.append(settings.cameraMode == Vision.MODE_SIDE ? "机位：侧面（仅坐姿）" : "机位：正面");
+        sb.append(" · 识别模式：MediaPipe Tasks 0.10.21 · CPU / XNNPACK\n");
         sb.append(String.format(Locale.CHINA,
                 "App CPU %.0f%%（单核占比）· 内存 %d/%d MB · 分析 %.1f 帧/秒",
                 cpuPct, memUsedMb, memTotalMb, fps));

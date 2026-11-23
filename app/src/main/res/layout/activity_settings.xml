@@ -234,6 +234,48 @@
                 android:orientation="vertical"
                 android:padding="22dp">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="摄像头机位"
+                    android:textColor="@color/fg2"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <Button
+                        android:id="@+id/btnModeFront"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="@color/panel"
+                        android:text="正面（对着人）"
+                        android:textColor="@color/fg3"
+                        android:textSize="12sp" />
+                    <Button
+                        android:id="@+id/btnModeSide"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:backgroundTint="@color/panel"
+                        android:text="侧面（左右都行）"
+                        android:textColor="@color/fg3"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="侧面模式只判断坐姿，不做注视/专注检测；两种机位各自校准、互不影响。"
+                    android:textColor="@color/fg3"
+                    android:textSize="11sp" />
+
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

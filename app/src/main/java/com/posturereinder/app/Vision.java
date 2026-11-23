@@ -21,9 +21,17 @@ public final class Vision {
     public static final double MIN_SW_RATIO = 0.035;
     public static final double MIN_SW_PX = 12.0;
 
+    public static final int MODE_FRONT = 0;
+    public static final int MODE_SIDE = 1;
+
     public static final String[] ORDER = {"neck", "shdrop", "head", "torso", "tilt", "lean", "dist"};
     public static final String[] LABEL = {"头前伸", "坐高下沉", "头部高度", "躯干前倾", "肩线倾斜", "身体侧偏", "靠近屏幕"};
     public static final double[] WEIGHT = {1.2, 1.3, 0.8, 1.0, 0.6, 0.6, 0.4};
+
+    /** Side view: the camera sits beside the child, shoulders are foreshortened. */
+    public static final String[] SIDE_ORDER = {"fwdhead", "trunk", "headdrop", "dist"};
+    public static final String[] SIDE_LABEL = {"头前伸", "躯干前倾", "头部下沉", "靠近屏幕"};
+    public static final double[] SIDE_WEIGHT = {1.2, 1.4, 0.9, 0.3};
 
     static final double K_ENTER = 2.5;
     static final double K_SPAN = 2.0;
@@ -38,6 +46,11 @@ public final class Vision {
         FLOOR.put("tilt", 0.020);
         FLOOR.put("lean", 0.030);
         FLOOR.put("dist", 0.030);
+        FLOOR.put("fwdhead", 0.025);
+        FLOOR.put("trunk", 2.5);
+        FLOOR.put("spine", 0.030);
+        FLOOR.put("headdrop", 0.025);
+        FLOOR.put("sidedist", 0.030);
     }
 
     public static final Map<String, String[]> ALERT = new HashMap<>();
@@ -50,6 +63,11 @@ public final class Vision {
         ALERT.put("tilt", new String[]{"shoulders", "肩膀放平，放松一点。"});
         ALERT.put("lean", new String[]{"center", "身子往中间坐一坐。"});
         ALERT.put("dist", new String[]{"far", "离书远一点，让眼睛休息一下。"});
+        ALERT.put("fwdhead", new String[]{"head_up", "头抬高一点，别低头。"});
+        ALERT.put("trunk", new String[]{"sit_up", "坐直一点，背挺起来。"});
+        ALERT.put("spine", new String[]{"sit_up", "坐直一点，背挺起来。"});
+        ALERT.put("headdrop", new String[]{"head_up", "头抬高一点，别低头。"});
+        ALERT.put("sidedist", new String[]{"far", "离书远一点，让眼睛休息一下。"});
     }
 
     private Vision() {
@@ -68,6 +86,16 @@ public final class Vision {
         public double sw;
         public double imgH;
         public double headW;   // ear span in pixels, 0 when unavailable
+
+        // side view
+        public boolean side;
+        public double fwdHead;    // ear ahead of shoulder, normalised by scale
+        public double trunk;      // torso inclination in degrees, + forward
+        public double spine;      // torso length / head depth (shorter = slouch)
+        public double headDrop;   // shoulder to ear vertical, normalised
+        public double torsoLen;   // shoulder to hip in pixels, 0 when hips hidden
+        public double headDepth;  // nose to ear in pixels
+        public double scaleRef;   // normalisation scale used by this frame
     }
 
     /** @param nx normalised x [0,1], @param ny normalised y, @param nv visibility */
@@ -148,6 +176,67 @@ public final class Vision {
         return f;
     }
 
+    /**
+     * Side view measurement. The child is seen in profile, so shoulder width is
+     * useless; everything is normalised by torso length (or a head-size proxy
+     * when the hips are out of frame). Facing direction comes from the nose,
+     * which makes left and right camera placement behave the same.
+     */
+    public static Frame measureSide(double[] nx, double[] ny, double[] nv, int w, int h) {
+        if (nx == null || nx.length < 33) return null;
+        double[] xs = new double[33];
+        double[] ys = new double[33];
+        double[] vs = new double[33];
+        for (int i = 0; i < 33; i++) {
+            xs[i] = nx[i] * w;
+            ys[i] = ny[i] * h;
+            vs[i] = nv[i];
+        }
+        if (vs[L_SHOULDER] < 0.5 || vs[R_SHOULDER] < 0.5) return null;
+
+        boolean leOk = vs[L_EAR] >= 0.5;
+        boolean reOk = vs[R_EAR] >= 0.5;
+        if (!leOk && !reOk) return null;
+        double earX = leOk ? xs[L_EAR] : xs[R_EAR];
+        double earY = leOk ? ys[L_EAR] : ys[R_EAR];
+        double shX = (xs[L_SHOULDER] + xs[R_SHOULDER]) / 2.0;
+        double shY = (ys[L_SHOULDER] + ys[R_SHOULDER]) / 2.0;
+
+        double noseX = xs[NOSE];
+        double noseY = ys[NOSE];
+        double dir = (noseX >= earX) ? 1.0 : -1.0;
+        double headDepth = Math.hypot(noseX - earX, noseY - earY);
+        if (headDepth < 6) headDepth = 6;
+
+        boolean hasHips = vs[L_HIP] >= 0.45 && vs[R_HIP] >= 0.45;
+        double hipX = 0, hipY = 0, torsoLen = 0;
+        if (hasHips) {
+            hipX = (xs[L_HIP] + xs[R_HIP]) / 2.0;
+            hipY = (ys[L_HIP] + ys[R_HIP]) / 2.0;
+            torsoLen = Math.hypot(shX - hipX, shY - hipY);
+        }
+        boolean hipsUsable = hasHips && torsoLen > 12;
+        double scale = hipsUsable ? torsoLen : 2.2 * headDepth;
+        if (scale < 12) return null;
+
+        Frame f = new Frame();
+        f.side = true;
+        f.sw = hipsUsable ? torsoLen : 0;
+        f.imgH = h;
+        f.torsoLen = torsoLen;
+        f.headDepth = headDepth;
+        f.hasTorso = hipsUsable;
+        f.scaleRef = scale;
+        f.fwdHead = ((earX - shX) * dir) / scale;
+        f.headDrop = (shY - earY) / scale;
+        f.spine = hipsUsable ? torsoLen / headDepth : 0;
+        if (hipsUsable) {
+            double dy = Math.max(1.0, hipY - shY);
+            f.trunk = Math.toDegrees(Math.atan2((shX - hipX) * dir, dy));
+        }
+        return f;
+    }
+
     // --------------------------------------------------------------- baseline
 
     public static final class Baseline {
@@ -158,8 +247,12 @@ public final class Vision {
         public int samples;
         public long createdAt;
 
+        public int mode = MODE_FRONT;
+        public double fwdHead, trunk, spine, headDrop, scaleRef, headDepth;
+        public double sFwdHead, sTrunk, sSpine, sHeadDrop, sSideDist;
+
         public boolean valid() {
-            return sw > 0;
+            return mode == MODE_SIDE ? scaleRef > 0 : sw > 0;
         }
     }
 
@@ -224,9 +317,65 @@ public final class Vision {
         return b;
     }
 
+    /** Baseline for the side view. Trunk metrics need the hips in frame. */
+    public static Baseline fitSide(List<Frame> frames) {
+        List<Frame> ok = new ArrayList<>();
+        if (frames != null) {
+            for (Frame f : frames) if (f != null && f.side) ok.add(f);
+        }
+        if (ok.size() < 15) {
+            throw new IllegalArgumentException("有效样本太少，请确认侧面能看到头和肩膀后重新校准");
+        }
+        List<Double> fwd = new ArrayList<>();
+        List<Double> drop = new ArrayList<>();
+        List<Double> scale = new ArrayList<>();
+        List<Double> spine = new ArrayList<>();
+        List<Double> trunk = new ArrayList<>();
+        for (Frame f : ok) {
+            fwd.add(f.fwdHead);
+            drop.add(f.headDrop);
+            scale.add(f.scaleRef);
+            if (f.hasTorso) {
+                spine.add(f.spine);
+                trunk.add(f.trunk);
+            }
+        }
+        Baseline b = new Baseline();
+        b.mode = MODE_SIDE;
+        b.fwdHead = median(fwd);
+        b.headDrop = median(drop);
+        b.scaleRef = median(scale);
+        b.hasTorso = spine.size() >= 8;
+        if (b.hasTorso) {
+            b.spine = median(spine);
+            b.trunk = median(trunk);
+        }
+        b.sFwdHead = Math.max(1.4826 * mad(fwd), FLOOR.get("fwdhead"));
+        b.sHeadDrop = Math.max(1.4826 * mad(drop), FLOOR.get("headdrop"));
+        b.sSideDist = Math.max(1.4826 * mad(scale) / Math.max(1.0, b.scaleRef),
+                FLOOR.get("sidedist"));
+        b.sSpine = b.hasTorso ? Math.max(1.4826 * mad(spine), FLOOR.get("spine"))
+                : FLOOR.get("spine");
+        b.sTrunk = b.hasTorso ? Math.max(1.4826 * mad(trunk), FLOOR.get("trunk"))
+                : FLOOR.get("trunk");
+        b.samples = ok.size();
+        b.createdAt = System.currentTimeMillis();
+        return b;
+    }
+
     public static Map<String, Double> deviations(Frame f, Baseline b) {
         Map<String, Double> out = new HashMap<>();
         if (f == null || b == null || !b.valid()) return out;
+        if (b.mode == MODE_SIDE) {
+            out.put("fwdhead", (f.fwdHead - b.fwdHead) / b.sFwdHead);
+            out.put("headdrop", (b.headDrop - f.headDrop) / b.sHeadDrop);
+            out.put("dist", (f.scaleRef / b.scaleRef - 1.0) / b.sSideDist);
+            if (b.hasTorso && f.hasTorso) {
+                out.put("trunk", (f.trunk - b.trunk) / b.sTrunk);
+                out.put("spine", (b.spine - f.spine) / b.sSpine);
+            }
+            return out;
+        }
         out.put("neck", (f.neckFwd - b.neckFwd) / b.sNeck);
         out.put("head", (b.headHeight - f.headHeight) / b.sHead);
         out.put("shdrop", (f.shY - b.shY) * f.imgH / f.sw / b.sShdrop);
@@ -265,23 +414,28 @@ public final class Vision {
             return r;
         }
         r.present = true;
-        if (b.headW > 0 && f.headW > 1.0) {
+        if (b.mode != MODE_SIDE && b.headW > 0 && f.headW > 1.0) {
             r.headRatio = f.headW / b.headW;
         }
         Map<String, Double> devs = deviations(f, b);
         if (devs.isEmpty()) return r;
+
+        String[] order = b.mode == MODE_SIDE ? SIDE_ORDER : ORDER;
+        String[] labels = b.mode == MODE_SIDE ? SIDE_LABEL : LABEL;
+        double[] weights = b.mode == MODE_SIDE ? SIDE_WEIGHT : WEIGHT;
 
         double k0 = K_ENTER * sensitivity;
         double totalW = 0, acc = 0, maxBad = 0;
         String dominant = null;
         double dominantBad = -1;
 
-        for (String key : ORDER) {
+        for (int i = 0; i < order.length; i++) {
+            String key = order[i];
             Double zv = devs.get(key);
             if (zv == null) continue;
             double z = zv;
             double bad = clamp((z - k0) / K_SPAN, 0, 1);
-            double w = WEIGHT[indexOf(key)];
+            double w = weights[i];
             totalW += w;
             acc += w * bad;
             if (bad > maxBad) maxBad = bad;
@@ -291,7 +445,7 @@ public final class Vision {
             }
             Metric m = new Metric();
             m.key = key;
-            m.label = LABEL[indexOf(key)];
+            m.label = labels[i];
             m.z = z;
             m.bad = bad;
             m.weight = w;
@@ -338,6 +492,28 @@ public final class Vision {
 
     public static String postureLabel(Reading r) {
         return postureLabel(r, 1.0);
+    }
+
+    public static String postureLabel(Reading r, double headRatio, int mode) {
+        if (r == null || !r.present) return "无人";
+        if (mode == MODE_SIDE) return sideLabel(r);
+        return postureLabel(r, headRatio);
+    }
+
+    /** Side view classes: the profile shows trunk lean and head position directly. */
+    private static String sideLabel(Reading r) {
+        Map<String, Double> z = new HashMap<>();
+        for (Metric m : r.metrics) z.put(m.key, m.z);
+        double trunk = z.containsKey("trunk") ? z.get("trunk") : 0;
+        double fwd = z.containsKey("fwdhead") ? z.get("fwdhead") : 0;
+        double drop = z.containsKey("headdrop") ? z.get("headdrop") : 0;
+        if (trunk > 2.0) return "前倾";
+        if (trunk < -2.0) return "后仰";
+        if (fwd > 2.0 && drop > 2.0) return "驼背";
+        if (fwd > 2.0) return "头前伸";
+        if (drop > 2.0) return "低头";
+        if (r.score >= 80) return "端正";
+        return "需调整";
     }
 
     // ------------------------------------------------------------ state machine

@@ -19,6 +19,8 @@ import java.util.Locale;
 
 public class LocalMainActivity extends Activity {
 
+    private TextView tvSub;
+
     private static final int REQ_PERM = 9;
 
     private TextView statusText;
@@ -62,6 +64,7 @@ public class LocalMainActivity extends Activity {
 
         statusText = findViewById(R.id.statusText);
         scoreText = findViewById(R.id.scoreText);
+        tvSub = findViewById(R.id.tvSub);
         detailText = findViewById(R.id.detailText);
         hintText = findViewById(R.id.hintText);
         btnStart = findViewById(R.id.btnStart);
@@ -107,7 +110,7 @@ public class LocalMainActivity extends Activity {
         });
 
         btnReset.setOnClickListener(v -> {
-            prefs.clearBaseline();
+            prefs.clearBaseline(settings.cameraMode);
             scoreText.setText("—");
             hintText.setText("已清除校准数据，请重新校准");
             Toast.makeText(this, "已清除校准", Toast.LENGTH_SHORT).show();
@@ -125,6 +128,10 @@ public class LocalMainActivity extends Activity {
         prefs.setVoice(settings.voice);
         updateVoiceLabel();
         applyTheme();
+        if (tvSub != null) {
+            tvSub.setText(settings.cameraMode == Vision.MODE_SIDE
+                    ? "POSTURE · GUARD · 侧面" : "POSTURE · GUARD · 正面");
+        }
     }
 
     private void applyTheme() {
@@ -264,7 +271,7 @@ public class LocalMainActivity extends Activity {
         statusText.setTextColor(color);
 
         String posture = label == null ? "—" : label;
-        String baseTime = prefs.baselineTime();
+        String baseTime = prefs.baselineTime(settings.cameraMode);
         if ("未校准".equals(baseTime)) {
             scoreText.setText("未校准");
         } else {

@@ -33,6 +33,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:id="@+id/tvSub"
             android:text="POSTURE · GUARD"
             android:textColor="@color/fg3"
             android:textSize="10sp"
@@ -161,7 +162,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
-            android:text="模型和语音都在 App 内，不需要联网。用前置摄像头，摄像头放在书桌前方正对人，能看到头和双肩。"
+            android:text="模型和语音都在 App 内，不需要联网。正面机位放在书桌前方正对人；侧面机位放在孩子左侧或右侧，画面里能看到头和肩膀。"
             android:textColor="@color/fg3"
             android:textSize="11sp"
             android:lineSpacingExtra="3dp" />

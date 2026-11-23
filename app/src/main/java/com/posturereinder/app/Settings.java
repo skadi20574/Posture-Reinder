@@ -22,6 +22,7 @@ public final class Settings {
     public float sensitivity = 1.0f;
     public float blinkThreshold = 0.65f;
     public float attentionSens = 1.0f;
+    public int cameraMode = Vision.MODE_FRONT;
     public int theme = 0;
     public boolean voice = true;
     public boolean attention = true;
@@ -40,6 +41,7 @@ public final class Settings {
         sensitivity = sp.getFloat("sensitivity", 1.0f);
         blinkThreshold = sp.getFloat("blink", 0.65f);
         attentionSens = sp.getFloat("attsens", 1.0f);
+        cameraMode = sp.getInt("cameraMode", Vision.MODE_FRONT);
         theme = sp.getInt("theme", 0);
         voice = sp.getBoolean("voice", true);
         attention = sp.getBoolean("attention", true);
@@ -55,6 +57,7 @@ public final class Settings {
                 .putFloat("sensitivity", sensitivity)
                 .putFloat("blink", blinkThreshold)
                 .putFloat("attsens", attentionSens)
+                .putInt("cameraMode", cameraMode)
                 .putInt("theme", theme)
                 .putBoolean("voice", voice)
                 .putBoolean("attention", attention)
@@ -70,6 +73,7 @@ public final class Settings {
         sensitivity = 1.0f;
         blinkThreshold = 0.65f;
         attentionSens = 1.0f;
+        cameraMode = Vision.MODE_FRONT;
         theme = 0;
         voice = true;
         attention = true;
