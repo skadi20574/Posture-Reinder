@@ -222,12 +222,18 @@ public class LocalService extends Service implements LifecycleOwner {
             if (names != null) java.util.Collections.addAll(audioFiles, names);
         } catch (Exception ignored) {
         }
-        tts = new TextToSpeech(this, status -> {
-            if (status == TextToSpeech.SUCCESS && tts != null) {
-                int r = tts.setLanguage(java.util.Locale.SIMPLIFIED_CHINESE);
-                ttsReady = r != TextToSpeech.LANG_MISSING_DATA
-                        && r != TextToSpeech.LANG_NOT_SUPPORTED;
+        tts = new TextToSpeech(getApplicationContext(), status -> {
+            if (status != TextToSpeech.SUCCESS || tts == null) {
+                Log.w(TAG, "tts init failed: " + status);
+                return;
             }
+            int r = tts.setLanguage(java.util.Locale.SIMPLIFIED_CHINESE);
+            if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                r = tts.setLanguage(java.util.Locale.CHINA);
+            }
+            ttsReady = r != TextToSpeech.LANG_MISSING_DATA
+                    && r != TextToSpeech.LANG_NOT_SUPPORTED;
+            Log.i(TAG, "tts ready=" + ttsReady + " lang=" + r);
         });
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE);
         createChannel();
@@ -819,19 +825,29 @@ public class LocalService extends Service implements LifecycleOwner {
     // ------------------------------------------------------------------ voice
 
     private void playVoice(String key) {
-        if (!audioFiles.contains(key + ".mp3")) {
-            String text = speakText(key);
-            if (text != null && ttsReady && tts != null) {
-                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "posture");
-            }
+        if (audioFiles.contains(key + ".mp3")) {
+            playAsset("audio/" + key + ".mp3");
             return;
         }
+        String text = speakText(key);
+        if (text != null && ttsReady && tts != null) {
+            try {
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "posture");
+                return;
+            } catch (Exception e) {
+                Log.w(TAG, "tts speak failed", e);
+            }
+        }
+        playAsset("audio/chime.wav");
+    }
+
+    private void playAsset(String path) {
         try {
             if (player != null) {
                 player.release();
                 player = null;
             }
-            AssetFileDescriptor afd = getAssets().openFd("audio/" + key + ".mp3");
+            AssetFileDescriptor afd = getAssets().openFd(path);
             MediaPlayer mp = new MediaPlayer();
             mp.setAudioAttributes(new AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)

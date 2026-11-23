@@ -46,11 +46,11 @@ public final class Vision {
         FLOOR.put("tilt", 0.020);
         FLOOR.put("lean", 0.030);
         FLOOR.put("dist", 0.030);
-        FLOOR.put("fwdhead", 0.025);
-        FLOOR.put("trunk", 2.5);
+        FLOOR.put("fwdhead", 0.015);
+        FLOOR.put("trunk", 1.2);
         FLOOR.put("spine", 0.030);
-        FLOOR.put("headdrop", 0.025);
-        FLOOR.put("sidedist", 0.030);
+        FLOOR.put("headdrop", 0.015);
+        FLOOR.put("sidedist", 0.025);
     }
 
     public static final Map<String, String[]> ALERT = new HashMap<>();
@@ -424,7 +424,11 @@ public final class Vision {
         String[] labels = b.mode == MODE_SIDE ? SIDE_LABEL : LABEL;
         double[] weights = b.mode == MODE_SIDE ? SIDE_WEIGHT : WEIGHT;
 
-        double k0 = K_ENTER * sensitivity;
+        // the profile has fewer metrics, so a single dominant one must be able to
+        // raise the level on its own; front mode keeps its original calibration
+        boolean side = b.mode == MODE_SIDE;
+        double k0 = side ? (1.8 + (sensitivity - 1.0) * 3.0) : K_ENTER * sensitivity;
+        double span = side ? 1.3 : K_SPAN;
         double totalW = 0, acc = 0, maxBad = 0;
         String dominant = null;
         double dominantBad = -1;
@@ -434,7 +438,7 @@ public final class Vision {
             Double zv = devs.get(key);
             if (zv == null) continue;
             double z = zv;
-            double bad = clamp((z - k0) / K_SPAN, 0, 1);
+            double bad = clamp((z - k0) / span, 0, 1);
             double w = weights[i];
             totalW += w;
             acc += w * bad;
@@ -452,7 +456,8 @@ public final class Vision {
             r.metrics.add(m);
         }
         double avg = totalW > 0 ? acc / totalW : 0;
-        r.level = Math.max(avg, 0.70 * maxBad);
+        r.level = side ? Math.max(0.55 * avg + 0.45 * maxBad, 0.80 * maxBad)
+                : Math.max(avg, 0.70 * maxBad);
         int score = (int) Math.round(100 * (1.0 - clamp(r.level / 0.75, 0, 1)));
         if (maxBad < 0.02) score = 100;
         r.score = Math.max(0, Math.min(100, score));

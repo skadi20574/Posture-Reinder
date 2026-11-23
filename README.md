@@ -75,11 +75,12 @@ app/src/main/assets/
 
 ## 语音
 
-仓库**不包含**任何语音文件（版权原因）。运行时如果 `assets/audio/` 里没有对应的 mp3，
-App 会自动退回系统 TTS 用中文朗读，所以直接编译也能出声。
+`assets/audio/` 里带了 17 条中文提示音（Edge TTS 合成），开箱就能出声。
+播放优先级：`audio/<key>.mp3` → 系统 TTS（中文）→ `chime.wav` 提示音；
+删掉对应 mp3 就会退回系统 TTS。
 
-想要更自然的声音，用自己的录音或合成的音频替换，文件名和文案见
-[app/src/main/assets/audio/README.md](app/src/main/assets/audio/README.md)。
+Edge TTS 生成音频的商用授权并不明确，如果要商用或再分发，请换成自己录制或有明确授权的音频，
+文件名和文案见 [app/src/main/assets/audio/README.md](app/src/main/assets/audio/README.md)。
 
 ## 隐私
 

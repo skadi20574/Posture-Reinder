@@ -1,6 +1,9 @@
 package com.posturereinder.app;
 
 import android.app.Activity;
+import android.content.res.AssetFileDescriptor;
+import android.media.MediaPlayer;
+import android.speech.tts.TextToSpeech;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -141,6 +144,7 @@ public class SettingsActivity extends Activity {
         attLoose.setOnClickListener(v -> setAttention(1.3));
         findViewById(R.id.themeMinimal).setOnClickListener(v -> chooseTheme(0));
         findViewById(R.id.themeElegant).setOnClickListener(v -> chooseTheme(1));
+        findViewById(R.id.btnTestVoice).setOnClickListener(v -> testVoice());
         findViewById(R.id.btnModeFront).setOnClickListener(v -> setMode(Vision.MODE_FRONT));
         findViewById(R.id.btnModeSide).setOnClickListener(v -> setMode(Vision.MODE_SIDE));
         findViewById(R.id.btnDebugPreview).setOnClickListener(v ->
@@ -264,6 +268,46 @@ public class SettingsActivity extends Activity {
         attLoose.setTextColor(loose ? accent : dim);
     }
 
+    private TextToSpeech testTts;
+
+    private void testVoice() {
+        if (testTts == null) {
+            testTts = new TextToSpeech(getApplicationContext(), status -> {
+                if (status != TextToSpeech.SUCCESS || testTts == null) {
+                    fallbackChime("语音引擎初始化失败");
+                    return;
+                }
+                int r = testTts.setLanguage(java.util.Locale.SIMPLIFIED_CHINESE);
+                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    r = testTts.setLanguage(java.util.Locale.CHINA);
+                }
+                if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    fallbackChime("系统没有中文语音");
+                    return;
+                }
+                testTts.speak("坐直一点，背挺起来。", TextToSpeech.QUEUE_FLUSH, null, "test");
+                runOnUiThread(() -> Toast.makeText(this, "系统语音可用",
+                        Toast.LENGTH_SHORT).show());
+            });
+        } else {
+            testTts.speak("坐直一点，背挺起来。", TextToSpeech.QUEUE_FLUSH, null, "test");
+        }
+    }
+
+    private void fallbackChime(String why) {
+        try (AssetFileDescriptor afd = getAssets().openFd("audio/chime.wav")) {
+            MediaPlayer mp = new MediaPlayer();
+            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            mp.setOnCompletionListener(MediaPlayer::release);
+            mp.prepare();
+            mp.start();
+        } catch (Exception e) {
+            // nothing to play
+        }
+        runOnUiThread(() -> Toast.makeText(this, why + "，已改用提示音；可在系统设置里安装中文语音引擎",
+                Toast.LENGTH_LONG).show());
+    }
+
     private void setMode(int mode) {
         settings.cameraMode = mode;
         settings.save();
@@ -341,6 +385,19 @@ public class SettingsActivity extends Activity {
         } catch (Exception e) {
             Toast.makeText(this, "安装失败：" + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (testTts != null) {
+            try {
+                testTts.stop();
+                testTts.shutdown();
+            } catch (Exception ignored) {
+            }
+            testTts = null;
+        }
+        super.onDestroy();
     }
 
     private abstract static class Simple implements SeekBar.OnSeekBarChangeListener {
